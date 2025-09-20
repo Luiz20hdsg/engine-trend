@@ -1,0 +1,114 @@
+## Documentação do Projeto: Trend Engine API
+
+### 1. Visão Geral
+
+Este documento resume o trabalho realizado na criação do backend para a engine de tendências de moda. O objetivo foi estruturar e implementar a fundação de uma API que irá, futuramente, coletar, processar e servir dados de tendências.
+
+### 2. Arquitetura e Tecnologias
+
+- **Framework da API**: FastAPI
+- **Banco de Dados**: PostgreSQL (hospedado no Supabase)
+- **ORM**: SQLAlchemy
+- **Validação de Dados**: Pydantic
+- **Bibliotecas Adicionais**: `python-slugify` para criação de slugs, `psycopg2-binary` para conexão com o Postgres.
+
+### 3. O Que Foi Feito
+
+1.  **Estrutura do Projeto**: Foi criada uma estrutura de diretórios lógica e escalável, separando a API, a lógica de banco de dados (CRUD), os modelos (schemas e models), os serviços e as configurações.
+2.  **Configuração do Ambiente**: O projeto foi configurado para carregar variáveis de ambiente (como a URL do banco e chaves de API) a partir de um arquivo `.env`.
+3.  **Modelagem do Banco de Dados**: Foram definidos os modelos de dados usando SQLAlchemy ORM em `app/database/models.py`, incluindo tabelas para `Category`, `Trend`, `Product`, `Store`, e `Brand`, com seus respectivos relacionamentos.
+4.  **Criação e População do Banco**: Foi criado um script (`scripts/seed_db.py`) que:
+    - Cria todas as tabelas no banco de dados com base nos modelos SQLAlchemy.
+    - Popula a tabela `categories` com uma lista hierárquica de categorias de moda.
+5.  **Implementação da API**: Foi criada a aplicação FastAPI (`main.py`) com um endpoint inicial.
+6.  **Primeiro Endpoint**: Foi implementado e testado o endpoint `GET /api/v1/categories`, que retorna a lista de categorias do banco de dados.
+
+### 4. Como Executar e Testar o Projeto
+
+**Pré-requisitos**: Python 3 e `pip3` instalados.
+
+**Passo 1: Configurar o Ambiente**
+
+Certifique-se de que o arquivo `.env` na raiz do projeto (`trend-engine/.env`) contém a sua string de conexão real do Supabase na variável `DATABASE_URL`.
+
+**Passo 2: Instalar as Dependências**
+
+Navegue até a raiz do projeto e execute:
+```bash
+pip3 install -r requirements.txt
+```
+
+**Passo 3: Iniciar o Servidor da API**
+
+No diretório raiz do projeto (`/Users/mymac/trend-engine`), execute o seguinte comando. Ele irá iniciar o servidor e mantê-lo rodando:
+
+```bash
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+**Passo 4: Testar o Endpoint (em um novo terminal)**
+
+Com o servidor rodando, abra um novo terminal e use o `curl` para fazer uma requisição ao endpoint de categorias:
+
+```bash
+curl http://localhost:8000/api/v1/categories
+```
+
+Você deverá ver como resposta um array JSON contendo todas as categorias que foram inseridas no banco de dados.
+
+### 5. Atualizando os Dados de Tendências (Processo Semi-Manual)
+
+A coleta de dados de algumas fontes (Shein, TikTok) é semi-manual. Isso significa que, para atualizar as tendências dessas fontes, um processo manual deve ser seguido para obter os dados brutos, que são então processados pela engine. O Google Trends é automático.
+
+O fluxo de atualização segue 3 passos principais:
+
+**Passo 1: Atualizar os Arquivos de Dados**
+
+Antes de rodar a pipeline, os arquivos de dados brutos devem ser atualizados manualmente.
+
+*   **Shein:**
+    *   Acesse a página de tendências da Shein para a região desejada (e.g., BR, EU).
+    *   Salve o código-fonte HTML completo da página nos seguintes arquivos:
+        *   Brasil: `app/services/collectors/manual_html/shein_br.html`
+        *   Europa: `app/services/collectors/manual_html/shein_eu.html`
+        *   *Nota: O site dos EUA (`shein_us.html`) não é suportado atualmente por carregar conteúdo dinamicamente.*
+
+*   **TikTok:**
+    *   Colete as hashtags de tendência para as categorias desejadas.
+    *   Adicione cada hashtag em uma nova linha nos seguintes arquivos:
+        *   Vestuário (BR): `app/services/collectors/manual_html/tiktok/br_apparel_accessories.txt`
+        *   Beleza (BR): `app/services/collectors/manual_html/tiktok/br_beauty_personal_care.txt`
+
+**Passo 2: Iniciar os Serviços de Background**
+
+A pipeline de dados depende de dois serviços rodando em background: Redis e o Celery Worker.
+
+1.  **Iniciar o Redis:**
+    *   Abra um novo terminal e execute:
+    ```bash
+    redis-server
+    ```
+
+2.  **Iniciar o Celery Worker:**
+    *   Abra outro terminal, navegue até a raiz do projeto.
+    *   Execute o seguinte comando. (A variável de ambiente é necessária para evitar um erro no macOS).
+    ```bash
+    OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES PYTHONPATH=. python3 -m celery -A app.core.celery_app worker --loglevel=info
+    ```
+
+**Passo 3: Disparar a Pipeline de Coleta**
+
+Com os serviços rodando, você pode disparar a pipeline para uma região específica.
+
+*   Abra um terceiro terminal na raiz do projeto.
+*   Execute o script a seguir, substituindo `'BR'` pela região desejada (`'EU'`, `'US'`, etc.).
+
+```python
+# Exemplo para disparar a coleta para o Brasil
+PYTHONPATH=. python3 -c "from app.services.tasks import collect_and_process_trends; collect_and_process_trends.delay('BR')"
+
+# Exemplo para disparar a coleta para a Europa
+PYTHONPATH=. python3 -c "from app.services.tasks import collect_and_process_trends; collect_and_process_trends.delay('EU')"
+```
+
+O progresso da coleta será exibido no terminal do Celery Worker.

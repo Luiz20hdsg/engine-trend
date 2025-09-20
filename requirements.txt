@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+celery
+redis
+python-dotenv
+requests  # Para chamar a API do Serper
+google-api-python-client
+pytrends
+python-slugify
+beautifulsoup4
+playwright
+pydantic-settings
+gunicorn

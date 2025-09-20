@@ -1,0 +1,13 @@
+A última coisa que estávamos fazendo é:
+
+- Adaptação do Coletor Shein:
+    - `shein_collector.py` modificado para ler descrições de produtos dos arquivos `shein_br.html` e `shein_eu.html`.
+    - Implementada a limpeza de marcas nas descrições da Shein.
+    - Tratamento para `shein_us.html` adicionado, indicando que não é suportado devido ao conteúdo dinâmico.
+- Adaptação do Coletor TikTok:
+    - `tiktok_collector.py` modificado para ler hashtags dos arquivos `br_beauty_personal_care.txt` e `br_apparel_accessories.txt`.
+    - Coletor refatorado para ser baseado em arquivos locais, não mais em web scraping.
+- Atualização do Banco de Dados e Schema:
+    - Colunas `source` e `category` adicionadas ao modelo `Trend` em `app/database/models.py`.
+    - Campos `source` e `category` adicionados aos schemas `TrendBase` e `TrendCreate` em `app/schemas/trend.py`.
+    - Observado que uma recriação/migração do banco de dados é necessária devido às mudanças no schema.
