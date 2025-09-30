@@ -1,42 +1,58 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import List, Optional
 
-# Schema base para Categoria, usado para leitura
-class CategoryBase(BaseModel):
+# Schemas for Product
+class ProductBase(BaseModel):
+    google_product_id: str
+    title: str
+    brand: Optional[str] = None
+    price: Optional[float] = None
+    thumbnail_url: Optional[str] = None
+    store_name: Optional[str] = None
+    store_link: str
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    variants: Optional[dict] = None
+    other_details: Optional[dict] = None
+
+class ProductCreate(ProductBase):
+    search_query_id: int
+
+class Product(ProductBase):
     id: int
-    name: str
-    slug: str
-    parent_id: Optional[int] = None
+    search_query_id: int
 
-# Este é o schema que será usado ao retornar dados da API.
-# orm_mode = True diz ao Pydantic para ler os dados de um objeto ORM (nosso modelo SQLAlchemy)
-class Category(CategoryBase):
     class Config:
-        from_attributes = True
+        orm_mode = True
 
-# Schema para criação (se necessário no futuro)
-class CategoryCreate(BaseModel):
+# Schemas for Filter
+class FilterBase(BaseModel):
     name: str
-    slug: str
-    parent_id: Optional[int] = None
+    type: Optional[str] = None
 
-
-# --- Schemas para Trend --- #
-
-class TrendBase(BaseModel):
-    name: str
-    source: str
-    category: str
-    region: str
-    score: int = 0
-    description: Optional[str] = None
-
-class TrendCreate(TrendBase):
+class FilterCreate(FilterBase):
     pass
 
-class Trend(TrendBase):
+class Filter(FilterBase):
     id: int
-    inspiration_images: Optional[list] = []
+    search_query_id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+# Schemas for SearchQuery
+class SearchQueryBase(BaseModel):
+    query: str
+    category: str
+    is_active: bool = True
+
+class SearchQueryCreate(SearchQueryBase):
+    pass
+
+class SearchQuery(SearchQueryBase):
+    id: int
+    filters: List[Filter] = []
+    products: List[Product] = []
+
+    class Config:
+        orm_mode = True

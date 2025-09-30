@@ -1,44 +1,65 @@
-from typing import Union
 from sqlalchemy.orm import Session
 from app.database import models
-from app.schemas import trend as trend_schema
+from app.schemas import trend as catalog_schema # I'm using 'trend' as it's the real filename
 
-def get_categories(db: Session, skip: int = 0, limit: int = 100):
-    """
-    Busca categorias no banco de dados.
-    """
-    return db.query(models.Category).offset(skip).limit(limit).all()
+# CRUD for SearchQuery
+def get_search_query(db: Session, query_id: int):
+    return db.query(models.SearchQuery).filter(models.SearchQuery.id == query_id).first()
 
-def get_trend_by_id(db: Session, trend_id: int) -> Union[models.Trend, None]:
-    """
-    Busca uma tendência específica pelo seu ID.
-    """
-    return db.query(models.Trend).filter(models.Trend.id == trend_id).first()
+def get_search_query_by_name(db: Session, query: str):
+    return db.query(models.SearchQuery).filter(models.SearchQuery.query == query).first()
 
-def get_trends(db: Session, region: str = None, category: str = None, skip: int = 0, limit: int = 100):
-    """
-    Busca tendências no banco de dados, com filtros opcionais por região e categoria.
-    """
-    query = db.query(models.Trend)
-    if region:
-        query = query.filter(models.Trend.region == region.upper())
-    if category:
-        query = query.filter(models.Trend.category == category)
-    return query.offset(skip).limit(limit).all()
+def get_active_search_queries(db: Session):
+    return db.query(models.SearchQuery).filter(models.SearchQuery.is_active == True).all()
 
-def get_trend_by_name_and_region(db: Session, name: str, region: str) -> Union[models.Trend, None]:
-    """
-    Busca uma tendência específica pelo nome e região.
-    """
-    return db.query(models.Trend).filter(models.Trend.name == name, models.Trend.region == region.upper()).first()
+def get_active_search_queries_by_region(db: Session, region: str):
+    return db.query(models.SearchQuery).filter(models.SearchQuery.is_active == True, models.SearchQuery.region == region.upper()).all()
 
-def create_trend(db: Session, trend: trend_schema.TrendCreate) -> models.Trend:
+def get_search_query_by_name_and_region(db: Session, query: str, region: str):
+    return db.query(models.SearchQuery).filter(models.SearchQuery.query == query, models.SearchQuery.region == region.upper()).first()
+
+# CRUD for Filter
+def get_or_create_filter(db: Session, search_query_id: int, name: str, type: str):
+    db_filter = db.query(models.Filter).filter(models.Filter.search_query_id == search_query_id, models.Filter.name == name).first()
+    if not db_filter:
+        db_filter = models.Filter(search_query_id=search_query_id, name=name, type=type)
+        db.add(db_filter)
+        db.commit()
+        db.refresh(db_filter)
+    return db_filter
+
+def get_filters_by_query_id(db: Session, search_query_id: int):
+    return db.query(models.Filter).filter(models.Filter.search_query_id == search_query_id).all()
+
+# CRUD for Product
+def create_or_update_product(db: Session, product: catalog_schema.ProductCreate):
     """
-    Cria uma nova tendência no banco de dados.
+    Creates a new product or updates it if it already exists based on google_product_id.
     """
-    # Usa model_dump() que é o método correto para Pydantic v2
-    db_trend = models.Trend(**trend.model_dump())
-    db.add(db_trend)
+    db_product = db.query(models.Product).filter(models.Product.google_product_id == product.google_product_id).first()
+
+    if db_product:
+        # Update existing product
+        update_data = product.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_product, key, value)
+    else:
+        # Create new product
+        db_product = models.Product(**product.model_dump())
+        db.add(db_product)
+    
     db.commit()
-    db.refresh(db_trend)
-    return db_trend
+    db.refresh(db_product)
+    return db_product
+
+def get_products_by_region(db: Session, region: str, skip: int = 0, limit: int = 100, category: str = None, brand: str = None, price_max: float = None):
+    query = db.query(models.Product).filter(models.Product.region == region.upper())
+    if category:
+        # This requires a join with search_queries
+        query = query.join(models.SearchQuery).filter(models.SearchQuery.category == category)
+    if brand:
+        query = query.filter(models.Product.brand.ilike(f"%{brand}%"))
+    if price_max:
+        query = query.filter(models.Product.price <= price_max)
+        
+    return query.offset(skip).limit(limit).all()

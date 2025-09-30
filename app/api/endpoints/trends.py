@@ -1,38 +1,51 @@
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api import deps
-from app.crud import crud_trends
-from app.schemas import trend as trend_schemas
+from app.crud import crud_trends as crud_catalog
+from app.schemas import trend as catalog_schema
+from app.database.models import RegionEnum
 
-# Cria um novo roteador
 router = APIRouter()
 
-@router.get("/categories", response_model=List[trend_schemas.Category])
-def read_categories(
+@router.get("/filters", response_model=List[catalog_schema.Filter])
+def read_filters(
+    category: str,
+    region: RegionEnum,
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100
 ):
     """
-    Recupera uma lista de categorias.
-    Este será usado pelo app para exibir os filtros.
+    Recupera uma lista de filtros para uma determinada categoria e região.
     """
-    categories = crud_trends.get_categories(db, skip=skip, limit=limit)
-    return categories
+    # This logic is simplified. We might need a more robust way to link
+    # a category to a search_query. For now, we assume a direct match.
+    search_query = crud_catalog.get_search_query_by_name_and_region(db, query=category, region=region.value)
+    if not search_query:
+        return []
+    return crud_catalog.get_filters_by_query_id(db, search_query_id=search_query.id)
 
 
-@router.get("/trends", response_model=List[trend_schemas.Trend])
-def read_trends(
+@router.get("/products", response_model=List[catalog_schema.Product])
+def read_products(
+    region: RegionEnum,
     db: Session = Depends(deps.get_db),
-    region: str = None,
     category: str = None,
+    brand: str = None,
+    price_max: float = None,
     skip: int = 0,
     limit: int = 100,
 ):
     """
-    Recupera uma lista de tendências, com filtros opcionais por região e categoria.
+    Recupera uma lista de produtos do catálogo, com filtros.
     """
-    trends = crud_trends.get_trends(db, region=region, category=category, skip=skip, limit=limit)
-    return trends
+    products = crud_catalog.get_products_by_region(
+        db,
+        region=region.value,
+        category=category,
+        brand=brand,
+        price_max=price_max,
+        skip=skip,
+        limit=limit
+    )
+    return products

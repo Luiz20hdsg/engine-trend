@@ -1,16 +1,14 @@
 from fastapi import FastAPI
-from app.api.endpoints import trends, stores, brands
+from app.api.endpoints import trends as catalog_router
 
-# Cria a instância principal da aplicação FastAPI
+# Creates the main FastAPI application instance
 app = FastAPI(title="Trend Engine API")
 
-# Inclui o roteador de tendências na aplicação principal
-# Todas as rotas definidas em trends.router serão prefixadas com /api/v1
-app.include_router(trends.router, prefix="/api/v1", tags=["Trends"])
-app.include_router(stores.router, prefix="/api/v1", tags=["Stores"])
-app.include_router(brands.router, prefix="/api/v1", tags=["Brands"])
+# Includes the catalog router in the main application
+# All routes defined in catalog_router.router will be prefixed with /api/v1/catalog
+app.include_router(catalog_router.router, prefix="/api/v1/catalog", tags=["Catalog"])
 
 @app.get("/")
 def read_root():
-    """Endpoint raiz para verificar se a API está no ar."""
+    """Root endpoint to check if the API is running."""
     return {"status": "Trend Engine API is running"}

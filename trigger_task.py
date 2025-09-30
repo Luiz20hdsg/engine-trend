@@ -1,8 +1,11 @@
-# Este script dispara a tarefa inicial do nosso pipeline de dados.
-from app.services.tasks import collect_and_process_trends
+# This script triggers the main data pipeline task for all supported regions.
+from app.services.tasks import run_product_catalog_sync
 
 if __name__ == "__main__":
-    print("Disparando a tarefa de coleta e processamento para a região 'BR'...")
-    # .delay() envia a tarefa para a fila do Celery para ser executada por um worker.
-    collect_and_process_trends.delay('BR')
-    print("Tarefa enviada para a fila. Verifique o terminal do worker para ver o progresso.")
+    regions = ["BR", "US", "EU"]
+    for region in regions:
+        print(f"Triggering the product catalog sync task for region: {region}...")
+        # .delay() sends the task to the Celery queue to be executed by a worker.
+        run_product_catalog_sync.delay(region)
+    
+    print("All regional tasks sent to the queue. Check the worker's terminal for progress.")
